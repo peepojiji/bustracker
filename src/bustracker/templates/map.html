@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ireland Bus Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/map.css') }}">
+</head>
+<body>
+    <nav id="navbar" aria-label="Main navigation">
+        <div id="navbar-left">
+            <button id="pane-toggle" type="button" aria-label="Toggle panel" aria-expanded="false" title="Toggle panel">☰</button>
+            <span id="brand">POPOIJIJI</span>
+        </div>
+        <div id="search-container">
+            <form id="route-form" role="search">
+                <input id="route-search" type="search" placeholder="Route number e.g. 215, 220" aria-label="Search route number" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="route-suggestions">
+                <button id="clear-search" type="button" aria-label="Clear search and show all buses" title="Clear search">✕</button>
+            </form>
+            <div id="route-suggestions" role="listbox" aria-label="Route suggestions"></div>
+        </div>
+        <div id="navbar-right"></div>
+    </nav>
+    <aside id="left-pane" aria-label="Bus tracker panel">
+        <div id="pane-body">
+            <div id="status">Loading buses…</div>
+            <section id="pane-routes" aria-label="Selected routes">
+                <h2 class="pane-section-label">Selected routes</h2>
+                <div id="variant-panel" role="group" aria-label="Route variants"></div>
+            </section>
+            <section id="pane-timetable" aria-label="Stop timetable">
+                <h2 class="pane-section-label">Stop timetable</h2>
+                <div id="timetable-header">
+                    <span id="timetable-stop-name"></span>
+                    <button id="timetable-refresh" type="button" aria-label="Refresh timetable" title="Refresh timetable">↻</button>
+                </div>
+                <div id="timetable-content">Click a bus stop on the map to see its timetable.</div>
+            </section>
+        </div>
+    </aside>
+    <div id="map" aria-label="Interactive map of Ireland"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+    <script type="module" src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body>
+</html>

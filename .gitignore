@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Caches
+.Python
+*.pth
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data / downloaded GTFS files
+data/gtfs_realtime.zip
+data/*.sqlite
+
+# Editor/OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
