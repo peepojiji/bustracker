@@ -13,6 +13,7 @@
     --color-border-light: #e5e7eb;
     --color-bg-hover: #f3f4f6;
     --color-bg-subtle: #f9fafb;
+    --navbar-height: 52px;
 }
 
 html, body, #map {
@@ -26,8 +27,9 @@ html, body, #map {
     top: 0;
     left: 0;
     right: 0;
-    height: 52px;
+    height: var(--navbar-height);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     padding: 0 12px;
     background: white;
@@ -72,7 +74,7 @@ html, body, #map {
 #left-pane {
     position: absolute;
     z-index: 1000;
-    top: 52px;
+    top: var(--navbar-height);
     bottom: 0;
     left: 0;
     width: 0;
@@ -433,8 +435,42 @@ html, body, #map {
     transform: translateX(-50%);
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
+    :root {
+        --navbar-height: 90px;
+    }
+
+    #navbar {
+        height: auto;
+        padding: 6px 12px;
+    }
+
+    #search-container {
+        width: 55%;
+        order: 3;
+        margin-top: 6px;
+        margin-left: auto;
+    }
+
+    #navbar-right {
+        display: none;
+    }
+
     #left-pane.open {
         width: 100%;
+    }
+
+    .departure-row {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .departure-dest {
+        flex-basis: 100%;
+        order: 3;
+    }
+
+    .departure-when {
+        margin-left: auto;
     }
 }
