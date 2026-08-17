@@ -198,6 +198,23 @@ def get_all_routes() -> list[dict]:
     ]
 
 
+def get_all_stops() -> list[dict]:
+    if not os.path.exists(DB_PATH):
+        return []
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT stop_id, name, lat, lon FROM stops").fetchall()
+    return [
+        {
+            "stop_id": row["stop_id"],
+            "name": row["name"],
+            "latitude": row["lat"],
+            "longitude": row["lon"],
+        }
+        for row in rows
+    ]
+
+
 @lru_cache(maxsize=256)
 def get_route_detail(route_number: str) -> dict | None:
     if not os.path.exists(DB_PATH):

@@ -11,6 +11,9 @@ const map = L.map("map", {
 L.control.zoom({ position: "bottomright" }).addTo(map);
 const busLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
+const stopLayer = L.layerGroup().addTo(map);
+let allStops = null;
+let activeStopMarker = null;
 const markers = new Map();
 const status = document.getElementById("status");
 const routeForm = document.getElementById("route-form");
@@ -127,13 +130,19 @@ function renderRouteLayer() {
             });
             (route.stops || []).forEach(stop => {
                 const marker = L.circleMarker([stop.latitude, stop.longitude], {
-                    radius: 5,
-                    color: variant.color,
+                    radius: 7,
+                    color: "#000000",
                     fillColor: variant.color,
                     fillOpacity: 0.9,
-                    weight: 1
+                    weight: 2
                 });
-                marker.on("click", () => showStopTimetable(stop));
+                marker.on("click", () => {
+                    if (activeStopMarker) {
+                        activeStopMarker.setStyle({ color: "#000000", fillColor: "#9ca3af" });
+                        activeStopMarker = null;
+                    }
+                    showStopTimetable(stop);
+                });
                 marker.addTo(routeLayer);
             });
         });
@@ -142,6 +151,8 @@ function renderRouteLayer() {
     if (bounds.isValid()) {
         map.fitBounds(bounds, { padding: [40, 40] });
     }
+    stopLayer.clearLayers();
+    activeStopMarker = null;
     updateClearButton();
     renderBuses();
 }
@@ -296,6 +307,60 @@ setInterval(() => {
     }
 }, 30000);
 
+function loadAllStops() {
+    if (allStops) {
+        return Promise.resolve(allStops);
+    }
+    return fetch("/api/stops")
+        .then(response => response.json().then(data => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+            allStops = ok ? data.stops || [] : [];
+            return allStops;
+        })
+        .catch(() => {
+            allStops = [];
+            return allStops;
+        });
+}
+
+function renderStopLayer() {
+    if (selectedVariants.size) {
+        stopLayer.clearLayers();
+        return;
+    }
+    if (map.getZoom() < 15) {
+        stopLayer.clearLayers();
+        return;
+    }
+    if (!allStops) {
+        loadAllStops().then(() => renderStopLayer());
+        return;
+    }
+    stopLayer.clearLayers();
+    const bounds = map.getBounds();
+    allStops.forEach(stop => {
+        if (!bounds.contains([stop.latitude, stop.longitude])) {
+            return;
+        }
+        const marker = L.circleMarker([stop.latitude, stop.longitude], {
+            radius: 7,
+            color: "#000000",
+            fillColor: "#9ca3af",
+            fillOpacity: 0.85,
+            weight: 2
+        });
+        marker.on("click", () => {
+            if (activeStopMarker) {
+                activeStopMarker.setStyle({ color: "#000000", fillColor: "#9ca3af" });
+            }
+            marker.setStyle({ color: "#000000", fillColor: "#2563eb" });
+            activeStopMarker = marker;
+            showStopTimetable(stop);
+        });
+        marker.addTo(stopLayer);
+    });
+}
+
 function clearSelection() {
     selectedVariants.clear();
     availableFamilies.clear();
@@ -303,8 +368,10 @@ function clearSelection() {
     variantPanel.innerHTML = "";
     variantPanel.style.display = "none";
     routeLayer.clearLayers();
+    activeStopMarker = null;
     updateClearButton();
     setPaneOpen(false);
+    renderStopLayer();
 }
 
 function updateClearButton() {
@@ -665,6 +732,7 @@ function updateBuses() {
 function onViewportChanged() {
     clearTimeout(viewportTimer);
     viewportTimer = setTimeout(() => {
+        renderStopLayer();
         if (!selectedVariants.size) {
             updateBuses();
         }

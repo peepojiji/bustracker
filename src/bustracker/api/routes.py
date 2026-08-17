@@ -47,6 +47,13 @@ def routes_list():
     return resp
 
 
+@api_bp.get("/stops")
+def stops_list():
+    resp = make_response(jsonify({"stops": gtfs.get_all_stops()}))
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
 @api_bp.get("/route/<route_number>")
 def route_detail(route_number):
     err = _validate(route_number, "route_number")
