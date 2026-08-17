@@ -133,7 +133,7 @@ def build(gtfs_path: str = GTFS_PATH, db_path: str = DB_PATH) -> None:
             ),
         )
         for chunk in _chunks(
-            ((row[0], int(row[3]), float(row[1]), float(row[2])) for row in _iter_rows(archive, "shapes.txt"))
+            (row[0], int(row[3]), float(row[1]), float(row[2])) for row in _iter_rows(archive, "shapes.txt")
         ):
             cur.executemany("INSERT INTO shapes VALUES (?,?,?,?)", chunk)
 

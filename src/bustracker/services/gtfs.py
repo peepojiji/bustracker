@@ -40,10 +40,9 @@ def _get_active_services(date_str: str, weekday_col: str) -> set[str]:
 
 
 def _rows(filename: str) -> list[dict]:
-    with zipfile.ZipFile(GTFS_PATH) as archive:
-        with archive.open(filename) as handle:
-            text = io.TextIOWrapper(handle, encoding="utf-8-sig")
-            return list(csv.DictReader(text))
+    with zipfile.ZipFile(GTFS_PATH) as archive, archive.open(filename) as handle:
+        text = io.TextIOWrapper(handle, encoding="utf-8-sig")
+        return list(csv.DictReader(text))
 
 
 @lru_cache(maxsize=1)
@@ -75,7 +74,7 @@ def get_route(route_id: str | None) -> dict | None:
 def get_stop_departures(stop_id: str, now: datetime | None = None) -> list[dict] | None:
     if not os.path.exists(DB_PATH):
         return None
-    now = now or datetime.now()
+    now = now or datetime.now().astimezone()
     date_str = now.strftime("%Y%m%d")
     weekday_col = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][now.weekday()]
     now_minutes = now.hour * 60 + now.minute
