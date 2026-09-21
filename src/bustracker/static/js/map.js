@@ -21,6 +21,50 @@ const map = L.map("map", {
     zoomControl: false
 }).setView(corkCenter, 13);
 L.control.zoom({ position: "bottomright" }).addTo(map);
+
+const LOCATE_ICON = '<i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>';
+
+function locateUser() {
+    if (!navigator.geolocation) {
+        status.textContent = "Geolocation is not supported by this browser.";
+        return;
+    }
+    status.textContent = "Locating you…";
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            map.setView([position.coords.latitude, position.coords.longitude], Math.max(map.getZoom(), 16));
+        },
+        (error) => {
+            status.textContent = `Location unavailable: ${error.message}`;
+        },
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+    );
+}
+
+const locateControl = L.control({ position: "bottomright" });
+locateControl.onAdd = function () {
+    const container = L.DomUtil.create("div", "leaflet-bar leaflet-control locate-bar");
+    const button = L.DomUtil.create("a", "leaflet-control-locate", container);
+    button.href = "#";
+    button.title = "Find my location";
+    button.setAttribute("role", "button");
+    button.setAttribute("aria-label", "Find my location");
+    button.innerHTML = LOCATE_ICON;
+    L.DomEvent.on(button, "click", event => {
+        L.DomEvent.preventDefault(event);
+        locateUser();
+    });
+    L.DomEvent.disableClickPropagation(button);
+    return container;
+};
+locateControl.addTo(map);
+
+const zoomElement = document.querySelector(".leaflet-control-zoom");
+const locateBar = document.querySelector(".locate-bar");
+if (zoomElement && locateBar) {
+    zoomElement.parentNode.insertBefore(locateBar, zoomElement);
+}
+
 const busLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const stopLayer = L.layerGroup().addTo(map);

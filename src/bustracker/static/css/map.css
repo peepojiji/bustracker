@@ -37,7 +37,6 @@ html, body, #map {
 }
 
 #navbar-left {
-    flex: 1;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -45,7 +44,7 @@ html, body, #map {
 }
 
 #navbar-right {
-    flex: 1;
+    flex: 0 0 auto;
 }
 
 #pane-toggle {
@@ -123,6 +122,7 @@ html, body, #map {
     position: relative;
     width: min(380px, 42vw);
     min-width: 0;
+    margin-left: auto;
 }
 
 #search-container,
@@ -433,6 +433,20 @@ html, body, #map {
     font: bold 11px sans-serif;
     white-space: nowrap;
     transform: translateX(-50%);
+}
+
+.leaflet-control-locate {
+    display: block;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    line-height: 30px;
+    font-size: 15px;
+    color: #333;
+}
+
+.leaflet-control-locate:hover {
+    color: #000;
 }
 
 @media (max-width: 480px) {

@@ -8,7 +8,7 @@ export function visibleBuses(currentVehicles) {
     return currentVehicles.filter(bus => selectedVariants.has(variantKey(routeNumber(bus), bus.agency)));
 }
 
-export function ensureVariantDetail(key) {
+export function ensureVariantDetail(key, onComplete) {
     const variant = selectedVariants.get(key);
     if (!variant || variant.detail || variant.loading) {
         return;
@@ -21,6 +21,7 @@ export function ensureVariantDetail(key) {
                 variant.detail = data;
             }
             variant.loading = false;
+            onComplete?.();
         })
         .catch(() => {
             variant.loading = false;
@@ -36,7 +37,7 @@ export function addFamilies(families) {
     });
 }
 
-export function addVariant(key, rn, agency, detail) {
+export function addVariant(key, rn, agency, detail, onComplete) {
     if (selectedVariants.has(key)) {
         return false;
     }
@@ -48,12 +49,12 @@ export function addVariant(key, rn, agency, detail) {
         loading: false
     });
     if (detail == null) {
-        ensureVariantDetail(key);
+        ensureVariantDetail(key, onComplete);
     }
     return true;
 }
 
-export function toggleVariant(key, rn, agency) {
+export function toggleVariant(key, rn, agency, onComplete) {
     if (selectedVariants.has(key) && selectedVariants.size === 1) {
         status.textContent = "At least one route must stay selected \u2014 use \u2715 to clear.";
         return;
@@ -68,7 +69,7 @@ export function toggleVariant(key, rn, agency) {
             detail: null,
             loading: false
         });
-        ensureVariantDetail(key);
+        ensureVariantDetail(key, onComplete);
     }
     const chip = chipElements.get(key);
     if (chip) {
@@ -78,9 +79,12 @@ export function toggleVariant(key, rn, agency) {
             chip.style.setProperty("--chip-color", variant.color);
         }
     }
+    if (!selectedVariants.has(key)) {
+        onComplete?.();
+    }
 }
 
-export function buildVariantPanel() {
+export function buildVariantPanel(onToggle) {
     variantPanel.innerHTML = "";
     variantPanel.style.display = availableFamilies.size ? "block" : "none";
     chipElements.clear();
@@ -107,7 +111,7 @@ export function buildVariantPanel() {
                 chip.classList.add("active");
                 chip.style.setProperty("--chip-color", variant.color);
             }
-            chip.addEventListener("click", () => toggleVariant(key, name, family.agency));
+            chip.addEventListener("click", () => toggleVariant(key, name, family.agency, onToggle));
             group.appendChild(chip);
         });
 
@@ -183,7 +187,7 @@ export function applySelection(value, families, agencyId, addVariant, addFamilie
                 const family = { agency: agencyId ?? agencies[0] ?? "?", base: value, routes: [value] };
                 addFamilies([family]);
                 addVariant(variantKey(value, family.agency), value, family.agency, data);
-                buildVariantPanel();
+                buildVariantPanel(renderRouteLayer);
                 renderRouteLayer();
             })
             .catch(() => {
@@ -200,9 +204,9 @@ export function applySelection(value, families, agencyId, addVariant, addFamilie
         if (!name) {
             return;
         }
-        addVariant(variantKey(name, family.agency), name, family.agency, null);
+        addVariant(variantKey(name, family.agency), name, family.agency, null, renderRouteLayer);
     });
 
-    buildVariantPanel();
+    buildVariantPanel(renderRouteLayer);
     renderRouteLayer();
 }

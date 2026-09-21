@@ -1,9 +1,11 @@
-import json
 import logging
+import tempfile
 import threading
 import time
-import urllib.error
-import urllib.request
+from pathlib import Path
+
+import certifi
+import requests
 
 from . import gtfs
 
@@ -14,6 +16,26 @@ MAX_429_RETRIES = 2
 log = logging.getLogger(__name__)
 _cache_lock = threading.Lock()
 _cache: dict = {"data": None, "fetched_at": 0.0}
+
+_INTERMEDIATE_PEM = Path(__file__).resolve().parents[3] / "data" / "godaddy_g2.pem"
+
+
+def _build_ca_bundle() -> str:
+    try:
+        with open(certifi.where()) as f:
+            base = f.read()
+        with open(_INTERMEDIATE_PEM) as f:
+            intermediate = f.read()
+    except OSError:
+        return certifi.where()
+    with tempfile.NamedTemporaryFile(suffix=".pem", delete=False, mode="w") as bundle:
+        bundle.write(base + "\n" + intermediate)
+        bundle.flush()
+        return bundle.name
+
+
+_session = requests.Session()
+_session.verify = _build_ca_bundle()
 
 
 def fetch_vehicles(api_key: str, route: str | None = None, bounds: tuple[float, float, float, float] | None = None) -> dict:
@@ -76,25 +98,23 @@ def fetch_vehicles(api_key: str, route: str | None = None, bounds: tuple[float, 
 
 def _fetch_from_nta(api_key: str) -> dict:
     for attempt in range(MAX_429_RETRIES + 1):
-        try:
-            request = urllib.request.Request(
-                API_URL,
-                headers={
-                    "Cache-Control": "no-cache",
-                    "x-api-key": api_key,
-                },
-            )
-            with urllib.request.urlopen(request, timeout=15) as response:
-                return json.load(response)
-        except urllib.error.HTTPError as error:
-            if error.code == 429 and attempt < MAX_429_RETRIES:
-                time.sleep(_retry_after_seconds(error))
-                continue
-            raise
+        resp = _session.get(
+            API_URL,
+            headers={
+                "Cache-Control": "no-cache",
+                "x-api-key": api_key,
+            },
+            timeout=15,
+        )
+        if resp.status_code == 429 and attempt < MAX_429_RETRIES:
+            time.sleep(_retry_after_seconds(resp))
+            continue
+        resp.raise_for_status()
+        return resp.json()
 
 
-def _retry_after_seconds(error: urllib.error.HTTPError) -> float:
-    retry_after = error.headers.get("Retry-After")
+def _retry_after_seconds(resp: requests.Response) -> float:
+    retry_after = resp.headers.get("Retry-After")
     if retry_after is None:
         return 1.5
     try:

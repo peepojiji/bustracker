@@ -29,6 +29,11 @@ dist/
 # Data / downloaded GTFS files
 data/gtfs_realtime.zip
 data/*.sqlite
+data/*.crt
+data/*.pem
+
+# Downloaded binaries
+*.deb
 
 # Editor/OS
 .idea/
