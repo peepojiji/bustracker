@@ -9,37 +9,128 @@ import {
     fetchToken, setFetchToken,
     viewportTimer, setViewportTimer,
     status, paneToggle,
-    setPaneOpen, paneOpen
+    setPaneOpen, paneOpen, syncPaneMode
 } from "./state.js";
 import { visibleBuses, addFamilies, addVariant, renderRouteLayer as renderRouteLayerBase, buildVariantPanel, clearSelection as clearSelectionBase, applySelection } from "./routes.js";
 import { initSearch, updateClearButton, setSearchRouteCallback } from "./search.js";
 import { initTimetable, showStopTimetable } from "./timetable.js";
 
+function parseHashView() {
+    const match = window.location.hash.match(/^#(\d{1,2})\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/);
+    if (!match) {
+        return null;
+    }
+    const zoom = Number(match[1]);
+    const lat = Number(match[2]);
+    const lng = Number(match[3]);
+    const valid = Number.isFinite(zoom) && Number.isFinite(lat) && Number.isFinite(lng)
+        && zoom >= 0 && zoom <= 22 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+    return valid ? { center: [lat, lng], zoom } : null;
+}
+
+function syncHashToView() {
+    try {
+        const center = map.getCenter();
+        const hash = `#${map.getZoom()}/${center.lat.toFixed(5)}/${center.lng.toFixed(5)}`;
+        if (window.location.hash !== hash) {
+            history.replaceState(null, "", hash);
+        }
+    } catch (error) {
+        // hash sync must never break map rendering
+    }
+}
+
+const initialView = parseHashView() || { center: corkCenter, zoom: 13 };
+
 const map = L.map("map", {
     maxBounds: irelandBounds,
     maxBoundsViscosity: 1.0,
     zoomControl: false
-}).setView(corkCenter, 13);
+});
+
+map.on("moveend", syncHashToView);
+map.setView(initialView.center, initialView.zoom, { animate: false });
+
 L.control.zoom({ position: "bottomright" }).addTo(map);
 
 const LOCATE_ICON = '<i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>';
+
+const USER_LOCATION_HTML = `
+    <div class="user-location">
+        <span class="user-location-pulse"></span>
+        <span class="user-location-dot"></span>
+    </div>`;
+
+function showUserLocation(latitude, longitude) {
+    if (!userLocationMarker) {
+        userLocationMarker = L.marker([latitude, longitude], {
+            icon: L.divIcon({
+                className: "user-location-icon",
+                html: USER_LOCATION_HTML,
+                iconSize: [0, 0],
+                iconAnchor: [0, 0]
+            }),
+            interactive: false
+        }).addTo(userLocationLayer);
+    } else {
+        userLocationMarker.setLatLng([latitude, longitude]);
+    }
+}
 
 function locateUser() {
     if (!navigator.geolocation) {
         status.textContent = "Geolocation is not supported by this browser.";
         return;
     }
+    if (locationWatchId !== null) {
+        if (userLocationMarker) {
+            recenterOnUser(Math.max(map.getZoom(), 16));
+            status.textContent = "Located";
+        }
+        return;
+    }
     status.textContent = "Locating you…";
-    navigator.geolocation.getCurrentPosition(
+    userMoved = false;
+    locateConvergingUntil = performance.now() + 12000;
+    locationWatchId = navigator.geolocation.watchPosition(
         (position) => {
-            map.setView([position.coords.latitude, position.coords.longitude], Math.max(map.getZoom(), 16));
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            showUserLocation(latitude, longitude);
+            if (!userMoved && performance.now() < locateConvergingUntil) {
+                status.textContent = "Located";
+                recenterOnUser(Math.max(map.getZoom(), 16));
+            }
         },
         (error) => {
             status.textContent = `Location unavailable: ${error.message}`;
+            navigator.geolocation.clearWatch(locationWatchId);
+            locationWatchId = null;
         },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
     );
 }
+
+let userMoved = false;
+let locationSuppressPan = false;
+let locateConvergingUntil = 0;
+
+function recenterOnUser(zoom) {
+    if (!userLocationMarker) {
+        return;
+    }
+    locationSuppressPan = true;
+    map.setView(userLocationMarker.getLatLng(), zoom, { animate: false });
+    setTimeout(() => {
+        locationSuppressPan = false;
+    }, 0);
+}
+
+map.on("movestart", () => {
+    if (!locationSuppressPan) {
+        userMoved = true;
+    }
+});
 
 const locateControl = L.control({ position: "bottomright" });
 locateControl.onAdd = function () {
@@ -69,27 +160,65 @@ const busLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const stopLayer = L.layerGroup().addTo(map);
 
+const userLocationLayer = L.layerGroup().addTo(map);
+let userLocationMarker = null;
+let locationWatchId = null;
+
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
 }).addTo(map);
 
 paneToggle.addEventListener("click", () => setPaneOpen(!paneOpen));
+map.on("click", () => {
+    if (paneOpen) {
+        setPaneOpen(false);
+    }
+});
 
-function ensureShape(shapeId) {
-    if (!shapeId || shapeCache.has(shapeId)) {
+const pendingShapes = new Set();
+let shapeRequestScheduled = false;
+
+function flushShapeRequests() {
+    shapeRequestScheduled = false;
+    if (!pendingShapes.size) {
         return;
     }
-    shapeCache.set(shapeId, null);
-    pathCache.delete(shapeId);
-    fetch(`/api/shape/${encodeURIComponent(shapeId)}`)
+    const ids = [...pendingShapes];
+    pendingShapes.clear();
+    fetch(`/api/shapes?ids=${encodeURIComponent(ids.join(","))}`)
         .then(response => response.json().then(data => ({ ok: response.ok, data })))
         .then(({ ok, data }) => {
-            shapeCache.set(shapeId, ok ? data.shape || [] : []);
+            const shapes = (ok && data.shapes) || {};
+            ids.forEach(id => {
+                shapeCache.set(id, Array.isArray(shapes[id]) ? shapes[id] : []);
+                pathCache.delete(id);
+            });
+            renderBuses();
         })
         .catch(() => {
-            shapeCache.set(shapeId, []);
+            ids.forEach(id => {
+                shapeCache.delete(id);
+                pathCache.delete(id);
+                pendingShapes.add(id);
+            });
+            if (!shapeRequestScheduled && pendingShapes.size) {
+                shapeRequestScheduled = true;
+                setTimeout(flushShapeRequests, 5000);
+            }
         });
+}
+
+function ensureShape(shapeId) {
+    if (!shapeId || shapeCache.has(shapeId) || pendingShapes.has(shapeId)) {
+        return;
+    }
+    pendingShapes.add(shapeId);
+    pathCache.delete(shapeId);
+    if (!shapeRequestScheduled) {
+        shapeRequestScheduled = true;
+        queueMicrotask(flushShapeRequests);
+    }
 }
 
 function getCachedPath(shapeId) {
@@ -129,7 +258,8 @@ function renderStopLayer() {
             color: "#000000",
             fillColor: "#9ca3af",
             fillOpacity: 0.85,
-            weight: 2
+            weight: 2,
+            bubblingMouseEvents: false
         });
         marker.on("click", () => {
             showStopTimetable(stop);
@@ -152,8 +282,10 @@ function renderBuses() {
             : null;
         const existing = markers.get(id);
         if (!existing) {
+            const marker = createMarker(bus, routeBearing, busLayer);
+            popupRouteButton(marker);
             markers.set(id, {
-                marker: createMarker(bus, routeBearing, busLayer),
+                marker,
                 position: target,
                 animFrame: null,
                 lastBearing: routeBearing,
@@ -191,6 +323,19 @@ function renderBuses() {
         ? `${count} bus${count === 1 ? "" : "es"}`
         : `${count} buses in view`;
     status.textContent = `${summary} | Updated ${new Date().toLocaleTimeString()}`;
+}
+
+function popupRouteButton(marker) {
+    marker.on("popupopen", event => {
+        const button = event.popup.getElement()?.querySelector?.(".popup-route-btn");
+        if (!button) {
+            return;
+        }
+        button.onclick = () => {
+            const agency = button.dataset.agency || null;
+            selectRoute(button.dataset.route, agency, false);
+        };
+    });
 }
 
 function bboxString() {
@@ -257,6 +402,7 @@ function doApplySelection(value, families, agencyId) {
     if (selectedVariants.size) {
         setPaneOpen(true);
     }
+    syncPaneMode();
 }
 
 function onViewportChanged() {

@@ -85,7 +85,25 @@ def shape_detail(shape_id):
     shape = gtfs.get_shape(shape_id)
     if shape is None:
         return jsonify({"error": "Shape not found"}), 404
-    return jsonify({"shape_id": shape_id, "shape": shape})
+    resp = make_response(jsonify({"shape_id": shape_id, "shape": shape}))
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
+@api_bp.get("/shapes")
+def shapes_batch():
+    ids = [part for part in request.args.get("ids", "").split(",") if part]
+    if not ids:
+        return jsonify({"error": "ids parameter is required"}), 400
+    if len(ids) > 200:
+        return jsonify({"error": "Too many shape ids (max 200)"}), 400
+    for shape_id in ids:
+        err = _validate(shape_id, "shape_id")
+        if err:
+            return err
+    resp = make_response(jsonify({"shapes": gtfs.get_shapes(ids)}))
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
 
 
 @api_bp.get("/stop/<stop_id>/departures")

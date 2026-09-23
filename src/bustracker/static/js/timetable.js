@@ -1,6 +1,6 @@
 import {
     timetableStopName, timetableContent, timetableRefresh,
-    currentTimetableStop, setCurrentTimetableStop, setPaneOpen
+    currentTimetableStop, setCurrentTimetableStop, setPaneOpen, syncPaneMode
 } from "./state.js";
 
 function departureTimeLabel(minutes) {
@@ -82,6 +82,7 @@ export function initTimetable(onSelectRoute) {
 export function showStopTimetable(stop) {
     setCurrentTimetableStop(stop);
     setPaneOpen(true);
+    syncPaneMode();
     timetableStopName.textContent = stop.name;
     loadStopTimetable(timetableRefreshCallback || (() => {}));
 }

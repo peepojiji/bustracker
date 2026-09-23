@@ -32,6 +32,10 @@ export function popupContent(bus) {
         }
     }
 
+    lines.push(
+        `<button type="button" class="popup-route-btn" data-route="${route}" data-agency="${escapeHtml(bus.agency ?? "")}">Show route</button>`
+    );
+
     return lines.join("<br>");
 }
 

@@ -5,6 +5,7 @@ import re
 import sqlite3
 import threading
 import zipfile
+from collections import OrderedDict
 from datetime import datetime
 from functools import lru_cache
 
@@ -166,9 +167,70 @@ def _route_base(name: str) -> str | None:
 def get_shape(shape_id: str | None) -> list[list[float]] | None:
     if not shape_id or not os.path.exists(DB_PATH):
         return None
-    with sqlite3.connect(DB_PATH) as conn:
-        rows = conn.execute("SELECT lat, lon FROM shapes WHERE shape_id = ? ORDER BY seq", (shape_id,)).fetchall()
-    return [[row[0], row[1]] for row in rows] if rows else None
+    with _db_lock:
+        cached = _shape_cache.get(shape_id, _MISSING)
+        if cached is not _MISSING:
+            _shape_cache.move_to_end(shape_id)
+            return cached or None
+        rows = _read_conn().execute(
+            "SELECT lat, lon FROM shapes WHERE shape_id = ? ORDER BY seq", (shape_id,)
+        ).fetchall()
+        data = [[round(row[0], 6), round(row[1], 6)] for row in rows] if rows else []
+        _shape_cache[shape_id] = data
+        _trim_shape_cache()
+        return data or None
+
+
+def get_shapes(shape_ids: list[str]) -> dict[str, list[list[float]]]:
+    """Fetch many shapes in a single query, reusing already-cached shapes."""
+    if not shape_ids or not os.path.exists(DB_PATH):
+        return {}
+    with _db_lock:
+        result: dict[str, list[list[float]]] = {}
+        missing: list[str] = []
+        for shape_id in shape_ids:
+            cached = _shape_cache.get(shape_id, _MISSING)
+            if cached is not _MISSING:
+                _shape_cache.move_to_end(shape_id)
+                result[shape_id] = cached
+            else:
+                missing.append(shape_id)
+
+        if missing:
+            placeholders = ",".join("?" * len(missing))
+            rows = _read_conn().execute(
+                f"SELECT shape_id, lat, lon FROM shapes WHERE shape_id IN ({placeholders}) ORDER BY shape_id, seq",
+                missing,
+            ).fetchall()
+            by_id: dict[str, list[list[float]]] = {}
+            for shape_id, lat, lon in rows:
+                by_id.setdefault(shape_id, []).append([round(lat, 6), round(lon, 6)])
+            for shape_id in missing:
+                data = by_id.get(shape_id, [])
+                _shape_cache[shape_id] = data
+                result[shape_id] = data
+            _trim_shape_cache()
+
+    return {shape_id: data for shape_id, data in result.items()}
+
+
+_MISSING = object()
+_SHAPE_CACHE_MAX = 512
+_shape_cache: OrderedDict[str, list[list[float]]] = OrderedDict()
+_db_lock = threading.Lock()
+_db_conn: sqlite3.Connection | None = None
+
+
+def _read_conn() -> sqlite3.Connection:
+    global _db_conn
+    if _db_conn is None:
+        _db_conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    return _db_conn
+
+
+def _trim_shape_cache() -> None:
+    while len(_shape_cache) > _SHAPE_CACHE_MAX:
+        _shape_cache.popitem(last=False)
 
 
 def route_exists(route_number: str) -> bool:
@@ -323,3 +385,8 @@ def invalidate_caches():
     get_route_detail.cache_clear()
     route_families.cache_clear()
     _active_services_cache.clear()
+    global _db_conn
+    _shape_cache.clear()
+    if _db_conn is not None:
+        _db_conn.close()
+        _db_conn = None

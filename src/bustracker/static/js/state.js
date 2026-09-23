@@ -41,3 +41,12 @@ export function setPaneOpen(open) {
     paneToggle.textContent = open ? "\u25c0" : "\u2630";
     paneToggle.setAttribute("aria-expanded", String(open));
 }
+
+export function syncPaneMode() {
+    const showingTimetable = Boolean(currentTimetableStop);
+    leftPane.classList.toggle("compact", !showingTimetable);
+    const timetableSection = document.getElementById("pane-timetable");
+    if (timetableSection) {
+        timetableSection.style.display = showingTimetable ? "" : "none";
+    }
+}

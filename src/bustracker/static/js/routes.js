@@ -1,5 +1,5 @@
 import { agencyLabel, routeNumber, variantKey, nextColor } from "./utils.js";
-import { selectedVariants, availableFamilies, chipElements, status, variantPanel } from "./state.js";
+import { selectedVariants, availableFamilies, chipElements, status, variantPanel, setCurrentTimetableStop, syncPaneMode } from "./state.js";
 
 export function visibleBuses(currentVehicles) {
     if (!selectedVariants.size) {
@@ -143,7 +143,8 @@ export function renderRouteLayer(routeLayer, stopLayer, map, onStopClick, render
                     color: "#000000",
                     fillColor: variant.color,
                     fillOpacity: 0.9,
-                    weight: 2
+                    weight: 2,
+                    bubblingMouseEvents: false
                 });
                 marker.on("click", () => onStopClick(stop, variant.color, marker));
                 marker.addTo(routeLayer);
@@ -166,6 +167,8 @@ export function clearSelection(routeLayer, stopLayer, setPaneOpen, renderStopLay
     variantPanel.innerHTML = "";
     variantPanel.style.display = "none";
     routeLayer.clearLayers();
+    setCurrentTimetableStop(null);
+    syncPaneMode();
     setPaneOpen(false);
     renderStopLayer();
     updateClearButton();

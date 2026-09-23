@@ -114,7 +114,7 @@ html, body, #map {
 
 #status {
     font: 600 14px sans-serif;
-    color: var(--color-text);
+    color: var(--color-text-muted);
     margin-bottom: 14px;
 }
 
@@ -150,14 +150,14 @@ html, body, #map {
     display: none;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    padding: 0;
+    padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: 4px;
     background: white;
     box-shadow: 0 1px 5px rgb(0 0 0 / 35%);
     color: var(--color-text-muted);
     font: 14px sans-serif;
+    white-space: nowrap;
     cursor: pointer;
 }
 
@@ -272,17 +272,20 @@ html, body, #map {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-bus-red);
 }
 
 #timetable-refresh {
     flex-shrink: 0;
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     background: none;
     color: var(--color-text-muted);
-    font-size: 15px;
+    font-size: 30px;
     line-height: 1;
     cursor: pointer;
 }
@@ -421,6 +424,21 @@ html, body, #map {
     z-index: 1;
 }
 
+.popup-route-btn {
+    margin-top: 8px;
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    background: var(--color-primary);
+    color: white;
+    font: 600 12px sans-serif;
+    cursor: pointer;
+}
+
+.popup-route-btn:hover {
+    background: var(--color-primary-dark);
+}
+
 .route-label {
     position: absolute;
     top: 42px;
@@ -449,7 +467,53 @@ html, body, #map {
     color: #000;
 }
 
-@media (max-width: 480px) {
+.user-location-icon {
+    background: none;
+    border: none;
+}
+
+.user-location {
+    position: relative;
+    width: 0;
+    height: 0;
+}
+
+.user-location-dot,
+.user-location-pulse {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+}
+
+.user-location-dot {
+    width: 16px;
+    height: 16px;
+    background: #1a73e8;
+    border: 3px solid white;
+    box-shadow: 0 0 4px rgb(0 0 0 / 30%);
+}
+
+.user-location-pulse {
+    width: 32px;
+    height: 32px;
+    background: rgb(26 115 232 / 35%);
+    animation: user-location-pulse 2s ease-out infinite;
+}
+
+@keyframes user-location-pulse {
+    from {
+        transform: translate(-50%, -50%) scale(0.6);
+        opacity: 0.9;
+    }
+    to {
+        transform: translate(-50%, -50%) scale(2.4);
+        opacity: 0;
+    }
+}
+
+@media (max-width: 767px) {
     :root {
         --navbar-height: 90px;
     }
@@ -470,8 +534,33 @@ html, body, #map {
         display: none;
     }
 
+    #left-pane {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 0;
+        max-height: 50vh;
+        border-radius: 12px 12px 0 0;
+        box-shadow: 0 -2px 8px rgb(0 0 0 / 25%);
+        transition: height 0.2s ease;
+    }
+
     #left-pane.open {
         width: 100%;
+        height: 50vh;
+        z-index: 1100;
+    }
+
+    #left-pane.open.compact {
+        height: auto;
+        max-height: 50vh;
+    }
+
+    #left-pane.open.compact #pane-body {
+        position: static;
+        overflow: visible;
     }
 
     .departure-row {
@@ -486,5 +575,29 @@ html, body, #map {
 
     .departure-when {
         margin-left: auto;
+    }
+
+    #pane-body {
+        font-size: 20px;
+    }
+
+    .pane-section-label {
+        font-size: 17px;
+    }
+
+    .departure-time {
+        font-size: 19px;
+    }
+
+    .departure-route {
+        font-size: 19px;
+    }
+
+    .departure-dest {
+        font-size: 19px;
+    }
+
+    .departure-when {
+        font-size: 18px;
     }
 }
