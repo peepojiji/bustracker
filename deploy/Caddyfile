@@ -1,0 +1,19 @@
+# Caddy reverse proxy -> bustracker (waitress on 127.0.0.1:5000)
+#
+# Install to /etc/caddy/Caddyfile. Caddy fetches and renews the Let's Encrypt
+# certificate automatically, so no port 443 config or certbot is needed.
+#
+# Namecheap DNS: A record  @  ->  <server public IP>
+#                A record  www ->  <server public IP>
+# Certificate issuance needs ports 80 + 443 reachable from the internet.
+# Either open them in the OCI security list + the Ubuntu firewall, or skip
+# Caddy entirely and use a Cloudflare Tunnel (no inbound ports at all).
+
+popojiji.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:5000
+}
+
+www.popojiji.com {
+	redir https://popojiji.com{uri} permanent
+}

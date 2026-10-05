@@ -1,0 +1,26 @@
+[Unit]
+Description=Bustracker (Flask/waitress)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bustracker
+Group=bustracker
+WorkingDirectory=/srv/bustracker
+Environment=BUSTRACKER_HOST=127.0.0.1
+Environment=BUSTRACKER_PORT=5000
+Environment=FLASK_DEBUG=0
+ExecStart=/srv/bustracker/.venv/bin/bustracker serve
+Restart=always
+RestartSec=5
+
+# Read-only system; only the GTFS cache dir may be written.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/bustracker/data
+
+[Install]
+WantedBy=multi-user.target

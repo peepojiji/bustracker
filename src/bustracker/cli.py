@@ -19,7 +19,16 @@ def serve() -> None:
         fetch_data()
 
     app = create_app()
-    app.run(host="127.0.0.1", port=5000, debug=os.getenv("FLASK_DEBUG", "0") == "1")
+    host = os.getenv("BUSTRACKER_HOST", "127.0.0.1")
+    port = int(os.getenv("BUSTRACKER_PORT", "5000"))
+
+    if os.getenv("FLASK_DEBUG", "0") == "1":
+        app.run(host=host, port=port, debug=True)
+        return
+
+    from waitress import serve as wsgi_serve
+
+    wsgi_serve(app, host=host, port=port)
 
 
 @cli.command()
