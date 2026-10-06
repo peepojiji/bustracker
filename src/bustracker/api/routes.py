@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, make_response, request
 
@@ -114,4 +115,6 @@ def stop_departures(stop_id):
     departures = gtfs.get_stop_departures(stop_id)
     if departures is None:
         return jsonify({"error": "Stop not found"}), 404
-    return jsonify({"stop_id": stop_id, "departures": departures})
+    now = datetime.now(gtfs.IRELAND_TZ)
+    now_minutes = now.hour * 60 + now.minute
+    return jsonify({"stop_id": stop_id, "now_minutes": now_minutes, "departures": departures})

@@ -8,6 +8,9 @@ import zipfile
 from collections import OrderedDict
 from datetime import datetime
 from functools import lru_cache
+from zoneinfo import ZoneInfo
+
+IRELAND_TZ = ZoneInfo("Europe/Dublin")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "..", "data")
 GTFS_PATH = os.path.join(DATA_DIR, "gtfs_realtime.zip")
@@ -75,7 +78,7 @@ def get_route(route_id: str | None) -> dict | None:
 def get_stop_departures(stop_id: str, now: datetime | None = None) -> list[dict] | None:
     if not os.path.exists(DB_PATH):
         return None
-    now = now or datetime.now().astimezone()
+    now = now or datetime.now(IRELAND_TZ)
     date_str = now.strftime("%Y%m%d")
     weekday_col = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][now.weekday()]
     now_minutes = now.hour * 60 + now.minute

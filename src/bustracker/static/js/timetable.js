@@ -25,7 +25,7 @@ function loadStopTimetable(onSelectRoute) {
                 timetableContent.textContent = "No scheduled departures in the next 3 hours.";
                 return;
             }
-            const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+            const nowMinutes = typeof data.now_minutes === "number" ? data.now_minutes : new Date().getHours() * 60 + new Date().getMinutes();
             timetableContent.innerHTML = "";
             const list = document.createElement("div");
             list.className = "departures";
